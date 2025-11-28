@@ -1,0 +1,59 @@
+pipeline {
+  agent any
+
+  environment {
+    DOCKERHUB_CREDENTIALS = 'dockerhub-creds' 
+    DOCKERHUB_USER = 'vaibhavi210'            
+    REMOTE_DIR = 'C:/Users/Vaibhavi/OneDrive/Desktop/my projects/discoverdollar-assignment/crud-dd-task-mean-app'
+  }
+
+  stages {
+    stage('Checkout') {
+      steps {
+        checkout scm
+      }
+    }
+
+    stage('Build Backend Image') {
+      steps {
+        script {
+          docker.withRegistry('', "${env.DOCKERHUB_CREDENTIALS}") {
+            def backendImg = docker.build("${env.DOCKERHUB_USER}/crud-backend:latest", "./backend")
+            backendImg.push()
+          }
+        }
+      }
+    }
+
+    stage('Build Frontend Image') {
+      steps {
+        script {
+          docker.withRegistry('', "${env.DOCKERHUB_CREDENTIALS}") {
+            def frontendImg = docker.build("${env.DOCKERHUB_USER}/crud-frontend:latest", "./frontend")
+            frontendImg.push()
+          }
+        }
+      }
+    }
+
+    stage('Deploy (local)') {
+      steps {
+        script {
+          
+          echo "Deploying using local docker compose"
+          sh 'docker compose -f docker-compose.yml pull'
+          sh 'docker compose -f docker-compose.yml up -d --remove-orphans'
+        }
+      }
+    }
+  }
+
+  post {
+    success {
+      echo "Pipeline finished successfully."
+    }
+    failure {
+      echo "Pipeline failed. Check logs."
+    }
+  }
+}
